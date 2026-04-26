@@ -1,4 +1,9 @@
-import type { ReviewMoment, OpponentContext } from "@/lib/mahjong/reviewer";
+import type {
+  ReviewMoment,
+  OpponentContext,
+  RelatedTedashi,
+} from "@/lib/mahjong/reviewer";
+import type { DangerInfo } from "@/lib/tenhou/tiles";
 import { Tile, TileList } from "@/components/analyze/TileDisplay";
 import { tileTypeToTileId } from "@/lib/mahjong/syanten-bridge";
 
@@ -19,6 +24,10 @@ export default function MomentDetail({ moment }: { moment: ReviewMoment }) {
 
   const shantenLabel =
     moment.shantenBefore === 0 ? "聴牌" : `${moment.shantenBefore}向聴`;
+
+  const showBest =
+    moment.bestDiscardTile !== null &&
+    moment.bestDiscardTile !== moment.discardTile;
 
   return (
     <div className={`rounded-lg border ${severityColor} p-3 space-y-2`}>
@@ -55,17 +64,20 @@ export default function MomentDetail({ moment }: { moment: ReviewMoment }) {
           ukeire={moment.actualUkeire}
           waits={moment.actualWaits}
           worsened={moment.shantenWorsened}
+          worstDangerLabel={moment.worstActualDangerLabel}
+          worstDangerRate={moment.worstActualDangerRate}
         />
-        {moment.bestDiscardTile !== null &&
-          moment.bestDiscardTile !== moment.discardTile && (
-            <DiscardCol
-              label="最善打"
-              tileId={moment.bestDiscardTile}
-              ukeire={moment.bestUkeire}
-              waits={moment.bestWaits}
-              isBest
-            />
-          )}
+        {showBest && moment.bestDiscardTile !== null && (
+          <DiscardCol
+            label="最善打"
+            tileId={moment.bestDiscardTile}
+            ukeire={moment.bestUkeire}
+            waits={moment.bestWaits}
+            isBest
+            worstDangerLabel={moment.worstBestDangerLabel}
+            worstDangerRate={moment.worstBestDangerRate}
+          />
+        )}
       </div>
 
       {moment.shantenWorsened ? (
@@ -80,7 +92,11 @@ export default function MomentDetail({ moment }: { moment: ReviewMoment }) {
         <p className="text-xs text-emerald-700">受け入れ最大の打牌</p>
       )}
 
-      <OpponentsBlock opponents={moment.opponents} discardTile={moment.discardTile} />
+      <OpponentsBlock
+        opponents={moment.opponents}
+        discardTile={moment.discardTile}
+        bestTile={showBest ? moment.bestDiscardTile : null}
+      />
 
       {moment.yakuHints.length > 0 && (
         <div className="pt-2 border-t border-zinc-200">
@@ -116,16 +132,23 @@ export default function MomentDetail({ moment }: { moment: ReviewMoment }) {
 function OpponentsBlock({
   opponents,
   discardTile,
+  bestTile,
 }: {
   opponents: OpponentContext[];
   discardTile: number;
+  bestTile: number | null;
 }) {
   return (
-    <div className="pt-2 border-t border-zinc-200">
-      <p className="text-[10px] text-zinc-500 mb-1">他家の状況・切牌の危険度</p>
+    <div className="pt-2 border-t border-zinc-200 space-y-1">
+      <p className="text-[10px] text-zinc-500">他家の状況・切牌の危険度</p>
       <div className="grid grid-cols-3 gap-1.5">
         {opponents.map((o) => (
-          <OpponentMini key={o.player} opp={o} discardTile={discardTile} />
+          <OpponentMini
+            key={o.player}
+            opp={o}
+            actualTile={discardTile}
+            bestTile={bestTile}
+          />
         ))}
       </div>
     </div>
@@ -134,20 +157,13 @@ function OpponentsBlock({
 
 function OpponentMini({
   opp,
-  discardTile,
+  actualTile,
+  bestTile,
 }: {
   opp: OpponentContext;
-  discardTile: number;
+  actualTile: number;
+  bestTile: number | null;
 }) {
-  const dangerColor =
-    opp.danger.rate === 0
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : opp.danger.rate <= 5
-        ? "bg-zinc-50 text-zinc-700 border-zinc-200"
-        : opp.danger.rate <= 9
-          ? "bg-amber-50 text-amber-700 border-amber-200"
-          : "bg-red-50 text-red-700 border-red-200";
-
   return (
     <div className="bg-white rounded p-1.5 border border-zinc-200 space-y-1">
       <div className="flex items-center justify-between">
@@ -173,12 +189,65 @@ function OpponentMini({
           </span>
         </div>
       )}
-      <div
-        className={`text-[10px] rounded px-1 py-0.5 border ${dangerColor}`}
-      >
-        対<span className="inline-block align-middle scale-90"><Tile id={discardTile} /></span>: {opp.danger.label}
-        <span className="ml-1 font-mono">{opp.danger.rate}%</span>
+
+      <DangerLine
+        labelTile={actualTile}
+        prefix="実打"
+        danger={opp.actualDanger}
+        related={opp.actualRelatedTedashi}
+      />
+      {opp.bestDanger && bestTile !== null && (
+        <DangerLine
+          labelTile={bestTile}
+          prefix="推奨"
+          danger={opp.bestDanger}
+          related={opp.bestRelatedTedashi}
+        />
+      )}
+    </div>
+  );
+}
+
+function DangerLine({
+  labelTile,
+  prefix,
+  danger,
+  related,
+}: {
+  labelTile: number;
+  prefix: string;
+  danger: DangerInfo;
+  related: RelatedTedashi[];
+}) {
+  const dangerColor =
+    danger.rate === 0
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : danger.rate <= 5
+        ? "bg-zinc-50 text-zinc-700 border-zinc-200"
+        : danger.rate <= 9
+          ? "bg-amber-50 text-amber-700 border-amber-200"
+          : "bg-red-50 text-red-700 border-red-200";
+
+  return (
+    <div className={`text-[10px] rounded px-1 py-0.5 border ${dangerColor}`}>
+      <div className="flex items-center gap-0.5 flex-wrap">
+        <span className="font-bold">{prefix}</span>
+        <Tile id={labelTile} />
+        <span>:</span>
+        <span>{danger.label}</span>
+        <span className="ml-auto font-mono">{danger.rate}%</span>
       </div>
+      {related.length > 0 && (
+        <div className="flex items-center gap-0.5 flex-wrap mt-0.5 pt-0.5 border-t border-current/20">
+          <span className="text-[9px]">近接手出:</span>
+          {related.slice(0, 3).map((r, i) => (
+            <span key={i} className="inline-flex items-center gap-0.5">
+              <Tile id={r.tile} />
+              <span className="text-[9px] font-mono">{r.turn}巡</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -190,6 +259,8 @@ function DiscardCol({
   waits,
   worsened,
   isBest,
+  worstDangerLabel,
+  worstDangerRate,
 }: {
   label: string;
   tileId: number;
@@ -197,6 +268,8 @@ function DiscardCol({
   waits: { tileType: number; count: number }[];
   worsened?: boolean;
   isBest?: boolean;
+  worstDangerLabel?: string;
+  worstDangerRate?: number;
 }) {
   return (
     <div className="bg-white rounded p-2 border border-zinc-200">
@@ -212,6 +285,12 @@ function DiscardCol({
         <Tile id={tileId} size="md" />
         <span className="text-xs">{worsened ? "—" : `${ukeire}枚`}</span>
       </div>
+      {worstDangerLabel && worstDangerLabel !== "—" && (
+        <div className="text-[10px] text-zinc-500 mb-1">
+          最大危険: <span className="font-bold">{worstDangerLabel}</span>
+          <span className="ml-1 font-mono">{worstDangerRate}%</span>
+        </div>
+      )}
       {waits.length > 0 && (
         <div className="flex flex-wrap gap-0.5">
           {waits.map((w, i) => (

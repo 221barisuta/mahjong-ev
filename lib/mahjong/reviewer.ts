@@ -6,6 +6,12 @@ import { suggestYaku, type YakuSuggestion } from "./yaku-suggest";
 
 export type Severity = "ok" | "warn" | "bad";
 
+export interface RelatedTedashi {
+  tile: number;
+  turn: number;
+  numDiff: number;
+}
+
 export interface OpponentContext {
   player: number;
   name: string;
@@ -15,8 +21,11 @@ export interface OpponentContext {
   totalDiscards: number;
   lastDiscard: number | null;
   lastDiscardTedashi: boolean | null;
-  danger: DangerInfo;
   isDealer: boolean;
+  actualDanger: DangerInfo;
+  actualRelatedTedashi: RelatedTedashi[];
+  bestDanger: DangerInfo | null;
+  bestRelatedTedashi: RelatedTedashi[];
 }
 
 export interface ReviewMoment {
@@ -36,8 +45,11 @@ export interface ReviewMoment {
   severity: Severity;
   yakuHints: YakuSuggestion[];
   opponents: OpponentContext[];
-  worstDangerLabel: string;
-  worstDangerRate: number;
+  worstActualDangerLabel: string;
+  worstActualDangerRate: number;
+  worstBestDangerLabel: string;
+  worstBestDangerRate: number;
+  hasRelatedSignal: boolean;
 }
 
 export interface ReviewRound {
@@ -91,10 +103,35 @@ function buildSummary(rounds: ReviewRound[]): ReviewSummary {
 interface PlayerState {
   pond: number[];
   pondTedashi: boolean[];
+  pondTurns: number[];
   lastDrawnTile: number | null;
   meldCount: number;
   riichiActive: boolean;
   riichiTurn: number | null;
+}
+
+const RELATED_RANGE = 2;
+
+function findRelatedTedashi(
+  state: PlayerState,
+  candidateTileId: number,
+): RelatedTedashi[] {
+  const t = tileType(candidateTileId);
+  if (t >= 27) return [];
+  const suit = Math.floor(t / 9);
+  const num = t % 9;
+  const out: RelatedTedashi[] = [];
+  for (let i = 0; i < state.pond.length; i++) {
+    if (!state.pondTedashi[i]) continue;
+    const pt = tileType(state.pond[i]);
+    if (pt < suit * 9 || pt >= (suit + 1) * 9) continue;
+    const pn = pt - suit * 9;
+    const diff = Math.abs(pn - num);
+    if (diff === 0) continue;
+    if (diff > RELATED_RANGE) continue;
+    out.push({ tile: state.pond[i], turn: state.pondTurns[i], numDiff: diff });
+  }
+  return out;
 }
 
 function reviewRound(
@@ -106,6 +143,7 @@ function reviewRound(
   const states: PlayerState[] = [0, 1, 2, 3].map(() => ({
     pond: [],
     pondTedashi: [],
+    pondTurns: [],
     lastDrawnTile: null,
     meldCount: 0,
     riichiActive: false,
@@ -125,12 +163,13 @@ function reviewRound(
       case "discard": {
         const playerState = states[event.player];
         const isTedashi = playerState.lastDrawnTile !== event.tile;
+        const turnNum = Math.ceil(totalDraws / 4);
 
         if (event.player === target && !states[target].riichiActive) {
           const moment = analyzeDiscard(
             hands[target],
             event.tile,
-            Math.ceil(totalDraws / 4),
+            turnNum,
             states[target].meldCount,
             isTedashi,
             states,
@@ -143,6 +182,7 @@ function reviewRound(
 
         playerState.pond.push(event.tile);
         playerState.pondTedashi.push(isTedashi);
+        playerState.pondTurns.push(turnNum);
         playerState.lastDrawnTile = null;
 
         const idx = hands[event.player].indexOf(event.tile);
@@ -189,21 +229,50 @@ function buildOpponents(
   states: PlayerState[],
   target: number,
   players: string[],
-  discardTile: number,
+  actualTileId: number,
+  bestTileId: number | null,
   dealer: number,
-): { opponents: OpponentContext[]; worstLabel: string; worstRate: number } {
+): {
+  opponents: OpponentContext[];
+  worstActualLabel: string;
+  worstActualRate: number;
+  worstBestLabel: string;
+  worstBestRate: number;
+  hasRelatedSignal: boolean;
+} {
   const opponents: OpponentContext[] = [];
-  let worstRate = 0;
-  let worstLabel = "—";
+  let worstActualRate = 0;
+  let worstActualLabel = "—";
+  let worstBestRate = 0;
+  let worstBestLabel = "—";
+  let hasRelatedSignal = false;
+  const showBest = bestTileId !== null && bestTileId !== actualTileId;
+
   for (let p = 0; p < 4; p++) {
     if (p === target) continue;
     const s = states[p];
     const pondTypes = new Set(s.pond.map((t) => tileType(t)));
-    const danger = classifyDanger(discardTile, pondTypes);
-    if (danger.rate > worstRate) {
-      worstRate = danger.rate;
-      worstLabel = danger.label;
+    const actualDanger = classifyDanger(actualTileId, pondTypes);
+    if (actualDanger.rate > worstActualRate) {
+      worstActualRate = actualDanger.rate;
+      worstActualLabel = actualDanger.label;
     }
+    let bestDanger: DangerInfo | null = null;
+    if (showBest && bestTileId !== null) {
+      bestDanger = classifyDanger(bestTileId, pondTypes);
+      if (bestDanger.rate > worstBestRate) {
+        worstBestRate = bestDanger.rate;
+        worstBestLabel = bestDanger.label;
+      }
+    }
+
+    const actualRelatedTedashi = findRelatedTedashi(s, actualTileId);
+    const bestRelatedTedashi =
+      showBest && bestTileId !== null ? findRelatedTedashi(s, bestTileId) : [];
+    if (actualRelatedTedashi.length > 0 || bestRelatedTedashi.length > 0) {
+      hasRelatedSignal = true;
+    }
+
     const lastIdx = s.pond.length - 1;
     opponents.push({
       player: p,
@@ -214,11 +283,27 @@ function buildOpponents(
       totalDiscards: s.pond.length,
       lastDiscard: lastIdx >= 0 ? s.pond[lastIdx] : null,
       lastDiscardTedashi: lastIdx >= 0 ? s.pondTedashi[lastIdx] : null,
-      danger,
       isDealer: p === dealer,
+      actualDanger,
+      actualRelatedTedashi,
+      bestDanger,
+      bestRelatedTedashi,
     });
   }
-  return { opponents, worstLabel, worstRate };
+
+  if (!showBest) {
+    worstBestLabel = "—";
+    worstBestRate = 0;
+  }
+
+  return {
+    opponents,
+    worstActualLabel,
+    worstActualRate,
+    worstBestLabel,
+    worstBestRate,
+    hasRelatedSignal,
+  };
 }
 
 function analyzeDiscard(
@@ -239,72 +324,68 @@ function analyzeDiscard(
   const discardType = tileType(discardTileId);
   const yakuHints = suggestYaku(hand14, hairi.now);
 
-  const { opponents, worstLabel, worstRate } = buildOpponents(
-    states,
-    target,
-    players,
-    discardTileId,
-    dealer,
-  );
+  let bestTileId: number | null = null;
+  let bestUkeire = 0;
+  let bestWaits: { tileType: number; count: number }[] = [];
+  let actualUkeire = 0;
+  let actualWaits: { tileType: number; count: number }[] = [];
+  let shantenWorsened = false;
+  let loss = 0;
+  let severity: Severity = "ok";
 
-  const baseExtras = {
+  if (hairi.candidates.length === 0) {
+    shantenWorsened = true;
+    severity = "bad";
+  } else {
+    const best = hairi.candidates.reduce((a, b) => (b.ukeire > a.ukeire ? b : a));
+    bestTileId = best.discardType >= 0 ? tileTypeToTileId(best.discardType) : null;
+    bestUkeire = best.ukeire;
+    bestWaits = best.waits;
+
+    const actual = hairi.candidates.find((c) => c.discardType === discardType);
+    if (!actual) {
+      shantenWorsened = true;
+      severity = "bad";
+      loss = best.ukeire;
+    } else {
+      actualUkeire = actual.ukeire;
+      actualWaits = actual.waits;
+      loss = best.ukeire - actual.ukeire;
+      if (loss >= 8) severity = "bad";
+      else if (loss >= 4) severity = "warn";
+    }
+  }
+
+  const {
+    opponents,
+    worstActualLabel,
+    worstActualRate,
+    worstBestLabel,
+    worstBestRate,
+    hasRelatedSignal,
+  } = buildOpponents(states, target, players, discardTileId, bestTileId, dealer);
+
+  return {
     turnNumber,
     hand: [...hand14].sort(tileSort),
     discardTile: discardTileId,
     isTedashi,
     meldCount,
     shantenBefore: hairi.now,
-    yakuHints,
-    opponents,
-    worstDangerLabel: worstLabel,
-    worstDangerRate: worstRate,
-  };
-
-  if (hairi.candidates.length === 0) {
-    return {
-      ...baseExtras,
-      shantenWorsened: true,
-      actualUkeire: 0,
-      actualWaits: [],
-      bestDiscardTile: null,
-      bestUkeire: 0,
-      bestWaits: [],
-      loss: 0,
-      severity: "bad",
-    };
-  }
-
-  const best = hairi.candidates.reduce((a, b) => (b.ukeire > a.ukeire ? b : a));
-  const actual = hairi.candidates.find((c) => c.discardType === discardType);
-
-  if (!actual) {
-    return {
-      ...baseExtras,
-      shantenWorsened: true,
-      actualUkeire: 0,
-      actualWaits: [],
-      bestDiscardTile: best.discardType >= 0 ? tileTypeToTileId(best.discardType) : null,
-      bestUkeire: best.ukeire,
-      bestWaits: best.waits,
-      loss: best.ukeire,
-      severity: "bad",
-    };
-  }
-
-  const loss = best.ukeire - actual.ukeire;
-  let severity: Severity = "ok";
-  if (loss >= 8) severity = "bad";
-  else if (loss >= 4) severity = "warn";
-
-  return {
-    ...baseExtras,
-    shantenWorsened: false,
-    actualUkeire: actual.ukeire,
-    actualWaits: actual.waits,
-    bestDiscardTile: best.discardType >= 0 ? tileTypeToTileId(best.discardType) : null,
-    bestUkeire: best.ukeire,
-    bestWaits: best.waits,
+    shantenWorsened,
+    actualUkeire,
+    actualWaits,
+    bestDiscardTile: bestTileId,
+    bestUkeire,
+    bestWaits,
     loss,
     severity,
+    yakuHints,
+    opponents,
+    worstActualDangerLabel: worstActualLabel,
+    worstActualDangerRate: worstActualRate,
+    worstBestDangerLabel: worstBestLabel,
+    worstBestDangerRate: worstBestRate,
+    hasRelatedSignal,
   };
 }
