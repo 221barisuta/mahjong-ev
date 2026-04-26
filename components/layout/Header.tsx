@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { href: "/", label: "計算機" },
-  { href: "/analyze", label: "牌譜分析" },
-  { href: "/review", label: "牌譜検討" },
+  { href: "/analyze", label: "牌譜分析・検討" },
   { href: "/tables", label: "参照表" },
   { href: "/quiz", label: "練習" },
 ];

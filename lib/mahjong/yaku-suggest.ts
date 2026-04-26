@@ -1,45 +1,59 @@
+import syanten from "syanten";
 import { tileType } from "@/lib/tenhou/tiles";
+import { tilesToHaiArr } from "./syanten-bridge";
 
 export interface YakuSuggestion {
   yaku: string;
   feasibility: "high" | "medium";
   hint: string;
+  estimatedShanten: number;
 }
 
 const HONOR_NAMES = ["東", "南", "西", "北", "白", "發", "中"];
 const SUIT_NAMES = ["萬子", "筒子", "索子"] as const;
 
-export function suggestYaku(handTileIds: number[]): YakuSuggestion[] {
+export function suggestYaku(
+  handTileIds: number[],
+  basicShanten: number,
+): YakuSuggestion[] {
   const counts = new Array<number>(34).fill(0);
   for (const id of handTileIds) counts[tileType(id)]++;
 
-  const suggestions: YakuSuggestion[] = [];
+  const candidates: YakuSuggestion[] = [];
 
   const yaochuCount = countYaochu(counts);
   if (yaochuCount === 0) {
-    suggestions.push({
+    candidates.push({
       yaku: "タンヤオ",
       feasibility: "high",
       hint: "幺九牌ゼロ。中張牌だけで進めれば自然にタンヤオ",
+      estimatedShanten: basicShanten,
     });
-  } else if (yaochuCount <= 3) {
-    suggestions.push({
+  } else if (yaochuCount <= 4) {
+    candidates.push({
       yaku: "タンヤオ",
-      feasibility: "medium",
-      hint: `幺九牌 ${yaochuCount}枚を切ればタンヤオが見える`,
+      feasibility: yaochuCount <= 2 ? "high" : "medium",
+      hint: `幺九牌 ${yaochuCount}枚を切る`,
+      estimatedShanten: basicShanten + Math.max(0, yaochuCount - 1),
     });
   }
 
-  const yakuhaiPairs: number[] = [];
+  const yakuhaiPairs: { type: number; count: number }[] = [];
   for (let t = 31; t < 34; t++) {
-    if (counts[t] >= 2) yakuhaiPairs.push(t);
+    if (counts[t] >= 2) yakuhaiPairs.push({ type: t, count: counts[t] });
   }
   if (yakuhaiPairs.length > 0) {
-    const names = yakuhaiPairs.map((t) => HONOR_NAMES[t - 27]).join("・");
-    suggestions.push({
+    const best = yakuhaiPairs.reduce((a, b) => (b.count > a.count ? b : a));
+    const name = HONOR_NAMES[best.type - 27];
+    const need = Math.max(0, 3 - best.count);
+    candidates.push({
       yaku: "役牌",
-      feasibility: "high",
-      hint: `${names}を残してアガリ確定の役を1つ`,
+      feasibility: best.count >= 3 ? "high" : "medium",
+      hint:
+        best.count >= 3
+          ? `${name}刻子で確定`
+          : `${name}対子。あと1枚で刻子`,
+      estimatedShanten: basicShanten + need,
     });
   }
 
@@ -51,13 +65,15 @@ export function suggestYaku(handTileIds: number[]): YakuSuggestion[] {
   const honorCount = sumRange(counts, 27, 34);
   const maxSuit = Math.max(...suitCounts);
   const maxSuitIdx = suitCounts.indexOf(maxSuit);
-  if (maxSuit + honorCount >= 10) {
-    suggestions.push({
-      yaku: maxSuit + honorCount === 14 || (maxSuit >= 11 && honorCount === 0)
-        ? "清一色"
-        : "混一色",
-      feasibility: maxSuit + honorCount >= 12 ? "high" : "medium",
-      hint: `${SUIT_NAMES[maxSuitIdx]}+字牌で${maxSuit + honorCount}枚。他色を切る`,
+  const honitsuTiles = maxSuit + honorCount;
+  if (honitsuTiles >= 9) {
+    const offSuit = handTileIds.length - honitsuTiles;
+    const isPure = honorCount === 0 && maxSuit >= 11;
+    candidates.push({
+      yaku: isPure ? "清一色" : "混一色",
+      feasibility: honitsuTiles >= 11 ? "high" : "medium",
+      hint: `${SUIT_NAMES[maxSuitIdx]}+字牌で${honitsuTiles}枚。他色${offSuit}枚を切る`,
+      estimatedShanten: basicShanten + Math.max(0, offSuit - 1),
     });
   }
 
@@ -67,23 +83,37 @@ export function suggestYaku(handTileIds: number[]): YakuSuggestion[] {
     if (counts[t] >= 3) triplets++;
     else if (counts[t] === 2) pairs++;
   }
-  if (triplets >= 2 || (triplets >= 1 && pairs >= 2) || pairs >= 4) {
-    suggestions.push({
+  if (triplets >= 1 || pairs >= 3) {
+    candidates.push({
       yaku: "対々和",
       feasibility: triplets >= 2 ? "high" : "medium",
-      hint: `刻子${triplets}・対子${pairs}。順子は崩して対子・刻子重視`,
+      hint: `刻子${triplets}・対子${pairs}。鳴き活用で進める`,
+      estimatedShanten: basicShanten + Math.max(0, 3 - triplets - Math.min(pairs, 3 - triplets)),
     });
   }
 
-  if (pairs >= 5) {
-    suggestions.push({
+  const arr = tilesToHaiArr(handTileIds);
+  const chitoitsuShanten =
+    handTileIds.length === 13 || handTileIds.length === 14
+      ? syanten.syanten7(arr)
+      : 6;
+  if (chitoitsuShanten <= 4 && pairs >= 3) {
+    candidates.push({
       yaku: "七対子",
-      feasibility: pairs >= 6 ? "high" : "medium",
-      hint: `対子${pairs}組。孤立牌を残し対子を増やす`,
+      feasibility: pairs >= 5 ? "high" : "medium",
+      hint: `対子${pairs}組。孤立牌を残し対子化`,
+      estimatedShanten: chitoitsuShanten,
     });
   }
 
-  return suggestions.slice(0, 3);
+  candidates.sort((a, b) => {
+    const fa = a.feasibility === "high" ? 0 : 1;
+    const fb = b.feasibility === "high" ? 0 : 1;
+    if (fa !== fb) return fa - fb;
+    return a.estimatedShanten - b.estimatedShanten;
+  });
+
+  return candidates.slice(0, 2);
 }
 
 function countYaochu(counts: number[]): number {

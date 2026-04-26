@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { href: "/", label: "計算機", icon: "calc" },
-  { href: "/analyze", label: "牌譜分析", icon: "analyze" },
-  { href: "/review", label: "牌譜検討", icon: "review" },
+  { href: "/analyze", label: "牌譜", icon: "analyze" },
   { href: "/tables", label: "参照表", icon: "table" },
   { href: "/quiz", label: "練習", icon: "quiz" },
 ];
@@ -40,14 +39,6 @@ const icons: Record<string, React.ReactNode> = {
       <line x1="16" y1="17" x2="8" y2="17" />
     </svg>
   ),
-  review: (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <circle cx="11" cy="11" r="7" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      <line x1="8" y1="11" x2="14" y2="11" />
-      <line x1="11" y1="8" x2="11" y2="14" />
-    </svg>
-  ),
   quiz: (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <circle cx="12" cy="12" r="10" />
@@ -67,7 +58,7 @@ export default function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex flex-col items-center py-2 px-2 text-[11px] font-medium transition-colors ${
+            className={`flex flex-col items-center py-2 px-4 text-xs font-medium transition-colors ${
               pathname === item.href
                 ? "text-zinc-900"
                 : "text-zinc-400"
