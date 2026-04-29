@@ -113,6 +113,8 @@ export const QUIZ_SCENARIOS: QuizScenario[] = [
     situation: "南2局6巡目・2着・親リーチ1巡目",
     hand: "両面8枚待ちテンパイ、ダマ満貫確定(期待7500)",
     tile: "無筋中張牌",
+    handTiles: ["2m","3m","4m","5p","6p","7p","2s","3s","4s","7p","7p","8m","8m"],
+    cutTile: "5s",
     input: {
       winRate: 50,
       expectedScore: 7500,
@@ -131,6 +133,8 @@ export const QUIZ_SCENARIOS: QuizScenario[] = [
     situation: "東1局10巡目・先制リーチ受け",
     hand: "悪形1シャンテン(受入6枚、打点3900)",
     tile: "無筋中張牌",
+    handTiles: ["1m","9m","3p","4p","5p","7s","8s","9s","E","E","W","C","C"],
+    cutTile: "5m",
     input: {
       winRate: 10,
       expectedScore: 3900,
@@ -149,6 +153,8 @@ export const QUIZ_SCENARIOS: QuizScenario[] = [
     situation: "オーラス・4着・3着と満貫条件",
     hand: "テンパイ、役ありダマ3900（満貫ではない）、親リーチ受け",
     tile: "無筋中張牌",
+    handTiles: ["3m","4m","5m","2p","3p","4p","6p","7p","8p","2s","3s","4s","7s"],
+    cutTile: "5s",
     input: {
       winRate: 30,
       expectedScore: 3900,

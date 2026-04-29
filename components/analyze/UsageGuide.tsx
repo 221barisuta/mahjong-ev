@@ -6,16 +6,30 @@ export default function UsageGuide() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="border border-zinc-200 rounded-xl bg-white">
+    <div
+      className="rounded-2xl"
+      style={{
+        background: "var(--c-card)",
+        border: "1px solid var(--c-border)",
+      }}
+    >
       <button
         type="button"
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-4 py-3 text-left"
       >
-        <span className="text-sm font-medium text-zinc-700">
+        <span
+          className="text-sm font-semibold"
+          style={{ color: "var(--c-text-dim)" }}
+        >
           使い方ガイド
         </span>
-        <span className="text-zinc-400 text-sm">{open ? "▲" : "▼"}</span>
+        <span
+          className="text-sm"
+          style={{ color: "var(--c-text-faint)" }}
+        >
+          {open ? "▲" : "▼"}
+        </span>
       </button>
 
       {open && (

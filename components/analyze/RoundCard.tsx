@@ -4,17 +4,17 @@ import { useState } from "react";
 import type { RoundAnalysis, PushFoldMoment } from "@/lib/tenhou/analyzer";
 import type { EvInput } from "@/lib/types";
 import { calculateEv } from "@/lib/ev";
-import { tileName } from "@/lib/tenhou/tiles";
 import { Tile, TileList } from "./TileDisplay";
 import BreakdownPanel from "@/components/calculator/BreakdownPanel";
 
+const formatSigned = (n: number) =>
+  (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(n).toLocaleString("ja-JP");
+
 function MomentCard({
   moment,
-  players,
   index,
 }: {
   moment: PushFoldMoment;
-  players: string[];
   index: number;
 }) {
   const [input, setInput] = useState<EvInput>(moment.evInput);
@@ -22,144 +22,156 @@ function MomentCard({
   const result = calculateEv(input);
   const isPush = result.decision === "push";
 
+  const dangerColor =
+    moment.combinedDangerRate === 0
+      ? { bg: "var(--c-bg)", fg: "var(--c-text-dim)" }
+      : moment.combinedDangerRate <= 5
+        ? { bg: "#eaf3fa", fg: "#1c4f8a" }
+        : moment.combinedDangerRate <= 10
+          ? { bg: "#fdf3dc", fg: "#a87618" }
+          : { bg: "var(--c-fold-bg)", fg: "var(--c-fold)" };
+
   return (
-    <div className="border border-zinc-200 rounded-lg p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500">#{index + 1}</span>
-          <span className="text-xs text-zinc-500">
+    <div
+      className="rounded-lg p-3 space-y-2"
+      style={{
+        background: "var(--c-card)",
+        border: "1px solid var(--c-border)",
+      }}
+    >
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 text-xs">
+          <span style={{ color: "var(--c-text-faint)" }}>#{index + 1}</span>
+          <span style={{ color: "var(--c-text-dim)" }}>
             {moment.turnNumber}巡目
           </span>
-          <span className="text-xs text-zinc-500">
-            (残り約{moment.remainingTurns}巡)
+          <span style={{ color: "var(--c-text-faint)" }}>
+            (残り{moment.remainingTurns}巡)
           </span>
-          <span className="text-xs font-medium">
-            打: <Tile id={moment.discardTile} size="md" />
+          <span className="flex items-center gap-1">
+            <span style={{ color: "var(--c-text-dim)" }}>打:</span>
+            <Tile id={moment.discardTile} size="md" />
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span
-            className={`text-xs font-medium px-2 py-0.5 rounded ${
-              moment.combinedDangerRate === 0
-                ? "bg-zinc-100 text-zinc-600"
-                : moment.combinedDangerRate <= 5
-                  ? "bg-blue-100 text-blue-700"
-                  : moment.combinedDangerRate <= 10
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-red-100 text-red-700"
-            }`}
+            className="text-[11px] font-bold px-2 py-0.5 rounded font-num tabular-nums"
+            style={{ background: dangerColor.bg, color: dangerColor.fg }}
           >
-            {moment.riichiPlayers[0]?.danger.label} {moment.combinedDangerRate}%
+            {moment.riichiPlayers[0]?.danger.label}{" "}
+            {moment.combinedDangerRate}%
           </span>
           <span
-            className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-              isPush
-                ? "bg-emerald-500 text-white"
-                : "bg-red-500 text-white"
-            }`}
+            className="text-[11px] font-bold px-2 py-0.5 rounded-full font-num tabular-nums"
+            style={{
+              background: isPush ? "var(--c-push)" : "var(--c-fold)",
+              color: "#fff",
+            }}
           >
-            {isPush ? "押し" : "降り"}{" "}
-            {result.pushEv > 0 ? "+" : ""}
-            {result.pushEv.toLocaleString()}
+            {isPush ? "押" : "降"} {formatSigned(result.pushEv)}
           </span>
         </div>
       </div>
 
-      {/* Riichi info */}
-      <div className="text-xs text-zinc-500">
+      <div className="text-xs" style={{ color: "var(--c-text-faint)" }}>
         vs{" "}
         {moment.riichiPlayers
-          .map(
-            (r) =>
-              `${r.name}${r.isDealer ? "(親)" : ""}`,
-          )
-          .join(", ")}
+          .map((r) => `${r.name}${r.isDealer ? "(親)" : ""}`)
+          .join(", ")}{" "}
         のリーチ
       </div>
 
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="text-xs text-zinc-500 underline"
+        className="text-xs underline"
+        style={{ color: "var(--c-text-dim)" }}
       >
         {expanded ? "閉じる" : "詳細・調整"}
       </button>
 
       {expanded && (
         <div className="space-y-3 pt-1">
-          {/* Hand */}
           <div>
-            <p className="text-xs text-zinc-500 mb-1">手牌:</p>
-            <TileList tiles={moment.hand} />
+            <p
+              className="text-[10px] mb-1 font-semibold tracking-[0.1em]"
+              style={{ color: "var(--c-text-faint)" }}
+            >
+              手牌
+            </p>
+            <TileList tiles={moment.hand} highlightTile={moment.discardTile} />
           </div>
 
-          {/* Adjustable inputs */}
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <label className="block text-zinc-500 mb-0.5">和了率 (%)</label>
-              <input
-                type="number"
-                value={input.winRate}
-                onChange={(e) =>
-                  setInput({ ...input, winRate: Number(e.target.value) })
-                }
-                className="w-full border rounded px-2 py-1"
-                min={0}
-                max={60}
-                step={1}
-              />
-            </div>
-            <div>
-              <label className="block text-zinc-500 mb-0.5">期待打点</label>
-              <input
-                type="number"
-                value={input.expectedScore}
-                onChange={(e) =>
-                  setInput({
-                    ...input,
-                    expectedScore: Number(e.target.value),
-                  })
-                }
-                className="w-full border rounded px-2 py-1"
-                min={0}
-                step={100}
-              />
-            </div>
-            <div>
-              <label className="block text-zinc-500 mb-0.5">放銃率 (%)</label>
-              <input
-                type="number"
-                value={input.dealInRate}
-                onChange={(e) =>
-                  setInput({ ...input, dealInRate: Number(e.target.value) })
-                }
-                className="w-full border rounded px-2 py-1"
-                min={0}
-                max={25}
-                step={0.5}
-              />
-            </div>
-            <div>
-              <label className="block text-zinc-500 mb-0.5">相手打点</label>
-              <input
-                type="number"
-                value={input.opponentScore}
-                onChange={(e) =>
-                  setInput({
-                    ...input,
-                    opponentScore: Number(e.target.value),
-                  })
-                }
-                className="w-full border rounded px-2 py-1"
-                min={0}
-                step={100}
-              />
-            </div>
+            <NumberInput
+              label="和了率 (%)"
+              value={input.winRate}
+              onChange={(v) => setInput({ ...input, winRate: v })}
+              max={60}
+            />
+            <NumberInput
+              label="期待打点"
+              value={input.expectedScore}
+              onChange={(v) => setInput({ ...input, expectedScore: v })}
+              step={100}
+            />
+            <NumberInput
+              label="放銃率 (%)"
+              value={input.dealInRate}
+              onChange={(v) => setInput({ ...input, dealInRate: v })}
+              max={25}
+              step={0.5}
+            />
+            <NumberInput
+              label="相手打点"
+              value={input.opponentScore}
+              onChange={(v) => setInput({ ...input, opponentScore: v })}
+              step={100}
+            />
           </div>
 
           <BreakdownPanel input={input} result={result} />
         </div>
       )}
+    </div>
+  );
+}
+
+function NumberInput({
+  label,
+  value,
+  onChange,
+  max,
+  step = 1,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  max?: number;
+  step?: number;
+}) {
+  return (
+    <div>
+      <label
+        className="block text-[10px] mb-0.5 font-semibold tracking-[0.1em]"
+        style={{ color: "var(--c-text-faint)" }}
+      >
+        {label}
+      </label>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full rounded px-2 py-1 font-num tabular-nums text-sm outline-none"
+        style={{
+          background: "var(--c-bg)",
+          border: "1px solid var(--c-border)",
+          color: "var(--c-text)",
+        }}
+        min={0}
+        max={max}
+        step={step}
+      />
     </div>
   );
 }
@@ -173,61 +185,94 @@ export default function RoundCard({
   players: string[];
   targetPlayer: number;
 }) {
+  void players;
   const [open, setOpen] = useState(round.moments.length > 0);
   const hasMoments = round.moments.length > 0;
 
   return (
     <div
-      className={`rounded-xl border ${
-        hasMoments ? "border-amber-300 bg-amber-50/30" : "border-zinc-200 bg-white"
-      }`}
+      className="rounded-2xl overflow-hidden"
+      style={{
+        background: hasMoments ? "var(--c-card)" : "var(--c-card)",
+        border: `1px solid ${hasMoments ? "var(--c-border-hi)" : "var(--c-border)"}`,
+      }}
     >
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--c-bg)]/50"
       >
-        <div>
+        <div className="flex items-baseline gap-2 flex-wrap">
           <span className="font-bold text-sm">{round.name}</span>
-          <span className="ml-2 text-xs text-zinc-500">
+          <span
+            className="text-xs font-num tabular-nums"
+            style={{ color: "var(--c-text-faint)" }}
+          >
             {round.scores.map((s, i) => (
-              <span
-                key={i}
-                className={i === targetPlayer ? "font-bold text-zinc-800" : ""}
-              >
+              <span key={i}>
                 {i > 0 && " / "}
-                {s.toLocaleString()}
+                <span
+                  style={{
+                    fontWeight: i === targetPlayer ? 700 : 500,
+                    color:
+                      i === targetPlayer
+                        ? "var(--c-text)"
+                        : "var(--c-text-faint)",
+                  }}
+                >
+                  {s.toLocaleString()}
+                </span>
               </span>
             ))}
           </span>
         </div>
         <div className="flex items-center gap-2">
           {hasMoments && (
-            <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-medium">
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{
+                background: "var(--c-warn)",
+                color: "#fff",
+              }}
+            >
               {round.moments.length}判断
             </span>
           )}
-          <span className="text-zinc-400 text-sm">{open ? "▲" : "▼"}</span>
+          <span
+            className="text-sm"
+            style={{ color: "var(--c-text-faint)" }}
+          >
+            {open ? "▲" : "▼"}
+          </span>
         </div>
       </button>
 
       {open && (
-        <div className="px-4 pb-3 space-y-2">
-          <p className="text-xs text-zinc-600">結果: {round.outcome}</p>
+        <div
+          className="px-4 pb-3 pt-1 space-y-2"
+          style={{
+            background: "var(--c-bg)",
+            borderTop: "1px solid var(--c-border)",
+          }}
+        >
+          <p
+            className="text-xs"
+            style={{ color: "var(--c-text-dim)" }}
+          >
+            結果: {round.outcome}
+          </p>
 
           {hasMoments ? (
             <div className="space-y-2">
               {round.moments.map((m, i) => (
-                <MomentCard
-                  key={i}
-                  moment={m}
-                  players={players}
-                  index={i}
-                />
+                <MomentCard key={i} moment={m} index={i} />
               ))}
             </div>
           ) : (
-            <p className="text-xs text-zinc-400">
+            <p
+              className="text-xs"
+              style={{ color: "var(--c-text-faint)" }}
+            >
               リーチ対応の押し引き判断なし
             </p>
           )}

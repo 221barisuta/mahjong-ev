@@ -6,28 +6,50 @@ export default function ReviewSummaryPanel({
   summary: ReviewSummary;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-zinc-200 p-3 space-y-2">
-      <p className="text-sm font-bold">サマリー</p>
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <Stat label="検討対象打牌" value={`${summary.totalMoments} 回`} />
+    <div
+      className="rounded-2xl p-4 space-y-3"
+      style={{
+        background: "var(--c-card)",
+        border: "1px solid var(--c-border)",
+      }}
+    >
+      <p
+        className="text-[11px] font-bold tracking-[0.1em]"
+        style={{ color: "var(--c-text-dim)" }}
+      >
+        サマリー
+      </p>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <Stat label="検討対象" value={`${summary.totalMoments}`} unit="回" />
         <Stat
           label="平均受け入れ"
-          value={`${summary.avgUkeire.toFixed(1)} 枚`}
+          value={summary.avgUkeire.toFixed(1)}
+          unit="枚"
+          color="var(--c-push)"
         />
         <Stat
-          label="要注意 (4枚以上ロス)"
-          value={`${summary.warnCount} 回`}
-          tone={summary.warnCount > 0 ? "warn" : undefined}
+          label="要注意 (4枚以上)"
+          value={`${summary.warnCount}`}
+          unit="回"
+          color={summary.warnCount > 0 ? "var(--c-warn)" : undefined}
         />
         <Stat
-          label="悪手 (8枚以上ロス)"
-          value={`${summary.badCount} 回`}
-          tone={summary.badCount > 0 ? "bad" : undefined}
+          label="悪手 (8枚以上)"
+          value={`${summary.badCount}`}
+          unit="回"
+          color={summary.badCount > 0 ? "var(--c-fold)" : undefined}
         />
         <Stat
           label="累計ロス"
-          value={`${summary.totalLoss} 枚`}
-          tone={summary.totalLoss >= 20 ? "bad" : summary.totalLoss >= 10 ? "warn" : undefined}
+          value={`${summary.totalLoss}`}
+          unit="枚"
+          color={
+            summary.totalLoss >= 20
+              ? "var(--c-fold)"
+              : summary.totalLoss >= 10
+                ? "var(--c-warn)"
+                : undefined
+          }
         />
       </div>
     </div>
@@ -37,22 +59,39 @@ export default function ReviewSummaryPanel({
 function Stat({
   label,
   value,
-  tone,
+  unit,
+  color,
 }: {
   label: string;
   value: string;
-  tone?: "warn" | "bad";
+  unit?: string;
+  color?: string;
 }) {
-  const color =
-    tone === "bad"
-      ? "text-red-700"
-      : tone === "warn"
-        ? "text-amber-700"
-        : "text-zinc-900";
   return (
-    <div className="bg-zinc-50 rounded-lg p-2">
-      <p className="text-[10px] text-zinc-500">{label}</p>
-      <p className={`text-sm font-bold ${color}`}>{value}</p>
+    <div
+      className="rounded-lg p-2.5"
+      style={{ background: "var(--c-bg)" }}
+    >
+      <p
+        className="text-[10px] font-semibold tracking-[0.1em]"
+        style={{ color: "var(--c-text-faint)" }}
+      >
+        {label}
+      </p>
+      <p
+        className="font-num font-bold text-base tabular-nums mt-0.5"
+        style={{ color: color ?? "var(--c-text)" }}
+      >
+        {value}
+        {unit && (
+          <span
+            className="text-[11px] ml-0.5"
+            style={{ color: "var(--c-text-faint)" }}
+          >
+            {unit}
+          </span>
+        )}
+      </p>
     </div>
   );
 }

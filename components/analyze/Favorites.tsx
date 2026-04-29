@@ -81,11 +81,11 @@ export function FavoriteButton({
     <button
       type="button"
       onClick={handleClick}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-        isFavorite
-          ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
-          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-      }`}
+      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+      style={{
+        background: isFavorite ? "#fdf3dc" : "var(--c-bg)",
+        color: isFavorite ? "#a87618" : "var(--c-text-dim)",
+      }}
       title={isFavorite ? "お気に入りから削除" : "お気に入りに追加"}
     >
       {isFavorite ? "★ お気に入り済み" : "☆ お気に入りに追加"}
@@ -105,32 +105,52 @@ export function FavoritesList({
   if (favorites.length === 0) return null;
 
   return (
-    <div className="border border-zinc-200 rounded-xl bg-white">
-      <div className="px-4 py-2.5 border-b border-zinc-100">
-        <span className="text-sm font-medium text-zinc-700">
+    <div
+      className="rounded-2xl"
+      style={{
+        background: "var(--c-card)",
+        border: "1px solid var(--c-border)",
+      }}
+    >
+      <div
+        className="px-4 py-2.5"
+        style={{ borderBottom: "1px solid var(--c-border)" }}
+      >
+        <span
+          className="text-[11px] font-bold tracking-[0.1em]"
+          style={{ color: "var(--c-text-dim)" }}
+        >
           ★ お気に入り ({favorites.length})
         </span>
       </div>
-      <div className="divide-y divide-zinc-100">
-        {favorites.map((fav) => (
+      <div>
+        {favorites.map((fav, i) => (
           <div
             key={fav.url}
             className="flex items-center justify-between px-4 py-2"
+            style={{
+              borderTop:
+                i === 0 ? "none" : "1px solid var(--c-border)",
+            }}
           >
             <button
               type="button"
               onClick={() => onSelect(fav.url)}
               className="flex-1 text-left"
             >
-              <p className="text-sm font-medium text-zinc-800 truncate">
-                {fav.label}
+              <p className="text-sm font-semibold truncate">{fav.label}</p>
+              <p
+                className="text-[10px] truncate font-num"
+                style={{ color: "var(--c-text-faint)" }}
+              >
+                {fav.url}
               </p>
-              <p className="text-[10px] text-zinc-400 truncate">{fav.url}</p>
             </button>
             <button
               type="button"
               onClick={() => onRemove(fav.url)}
-              className="ml-2 text-zinc-400 hover:text-red-500 text-sm"
+              className="ml-2 text-sm"
+              style={{ color: "var(--c-text-faint)" }}
               title="削除"
             >
               ×

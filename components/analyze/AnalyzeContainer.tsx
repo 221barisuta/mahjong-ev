@@ -88,34 +88,59 @@ export default function AnalyzeContainer() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="天鳳の牌譜URL (https://tenhou.net/0/?log=...&tw=N)"
-          className="w-full border border-zinc-300 rounded-lg px-3 py-2.5 text-sm"
+          className="w-full px-3.5 py-2.5 text-sm rounded-lg outline-none transition-colors"
+          style={{
+            background: "var(--c-card)",
+            border: "1px solid var(--c-border)",
+            color: "var(--c-text)",
+          }}
           onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
         />
         <button
           type="button"
           onClick={() => handleAnalyze()}
           disabled={loading || !url}
-          className="w-full py-2.5 rounded-lg bg-zinc-900 text-white font-medium text-sm hover:bg-zinc-800 transition-colors disabled:opacity-50"
+          className="w-full py-2.5 rounded-lg font-bold text-sm transition-opacity disabled:opacity-50"
+          style={{
+            background: "var(--c-ink)",
+            color: "#fff",
+          }}
         >
           {loading ? "分析中..." : "分析する"}
         </button>
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
+        <div
+          className="text-sm rounded-lg p-3"
+          style={{
+            background: "var(--c-fold-bg)",
+            border: "1px solid var(--c-fold)",
+            color: "var(--c-fold)",
+          }}
+        >
           {error}
-        </p>
+        </div>
       )}
 
       {analysis && review && (
         <div className="space-y-3">
-          <div className="bg-white rounded-xl border border-zinc-200 p-3">
-            <div className="flex items-center justify-between mb-2">
+          <div
+            className="rounded-2xl p-4"
+            style={{
+              background: "var(--c-card)",
+              border: "1px solid var(--c-border)",
+            }}
+          >
+            <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-bold">
-                  {analysis.players[analysis.targetPlayer]}の牌譜
+                  {analysis.players[analysis.targetPlayer]} の牌譜
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p
+                  className="text-xs mt-0.5"
+                  style={{ color: "var(--c-text-faint)" }}
+                >
                   {analysis.players.join(" / ")}
                 </p>
               </div>
@@ -129,7 +154,34 @@ export default function AnalyzeContainer() {
             </div>
           </div>
 
-          <TabSwitcher tab={tab} onChange={setTab} />
+          <div
+            className="flex p-1 rounded-lg"
+            style={{
+              background: "var(--c-card)",
+              border: "1px solid var(--c-border)",
+            }}
+          >
+            {([
+              { key: "push" as const, label: "押し引き分析" },
+              { key: "review" as const, label: "牌譜検討" },
+            ] as const).map((t) => {
+              const active = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setTab(t.key)}
+                  className="flex-1 py-2 rounded-md text-xs md:text-[13px] font-semibold transition-colors"
+                  style={{
+                    background: active ? "var(--c-ink)" : "transparent",
+                    color: active ? "#fff" : "var(--c-text-dim)",
+                  }}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
 
           {tab === "push" ? (
             <>
@@ -138,7 +190,10 @@ export default function AnalyzeContainer() {
                 players={analysis.players}
                 targetPlayer={analysis.targetPlayer}
               />
-              <p className="text-xs text-zinc-500">
+              <p
+                className="text-xs"
+                style={{ color: "var(--c-text-faint)" }}
+              >
                 ※ 和了率・期待打点はデフォルト値です。詳細を開いて手牌を確認し調整してください。
               </p>
               {analysis.rounds.map((round, i) => (
@@ -153,7 +208,10 @@ export default function AnalyzeContainer() {
           ) : (
             <>
               <ReviewSummaryPanel summary={review.summary} />
-              <p className="text-xs text-zinc-500 leading-relaxed">
+              <p
+                className="text-xs leading-relaxed"
+                style={{ color: "var(--c-text-faint)" }}
+              >
                 ※ リーチ後の打牌は検討対象外。受け入れ枚数は標準形＋七対子＋国士の最良値で算出。
               </p>
               {review.rounds.map((r, i) => (
@@ -172,37 +230,6 @@ export default function AnalyzeContainer() {
           onClear={clearHistory}
         />
       )}
-    </div>
-  );
-}
-
-function TabSwitcher({
-  tab,
-  onChange,
-}: {
-  tab: Tab;
-  onChange: (t: Tab) => void;
-}) {
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "push", label: "押し引き分析" },
-    { key: "review", label: "牌譜検討" },
-  ];
-  return (
-    <div className="flex gap-1 bg-zinc-100 rounded-lg p-1">
-      {tabs.map((t) => (
-        <button
-          key={t.key}
-          type="button"
-          onClick={() => onChange(t.key)}
-          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            tab === t.key
-              ? "bg-white text-zinc-900 shadow-sm"
-              : "text-zinc-500"
-          }`}
-        >
-          {t.label}
-        </button>
-      ))}
     </div>
   );
 }

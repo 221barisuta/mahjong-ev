@@ -48,6 +48,8 @@ export interface QuizScenario {
   situation: string;
   hand: string;
   tile: string;
+  handTiles?: string[];
+  cutTile?: string;
   input: EvInput;
   answer: "push" | "fold" | "neutral";
   explanation: string;

@@ -1,49 +1,120 @@
 import type { QuizScenario } from "@/lib/types";
-
-interface ScenarioCardProps {
-  scenario: QuizScenario;
-  onAnswer: (answer: "push" | "fold") => void;
-  answered: boolean;
-}
+import { Tile, type TileCode } from "@/components/tiles/Tile";
 
 export default function ScenarioCard({
   scenario,
+  index,
+  total,
   onAnswer,
-  answered,
-}: ScenarioCardProps) {
+  userAnswer,
+}: {
+  scenario: QuizScenario;
+  index: number;
+  total: number;
+  onAnswer: (answer: "push" | "fold") => void;
+  userAnswer?: "push" | "fold";
+}) {
+  const handTiles = (scenario.handTiles ?? []) as TileCode[];
+  const cutTile = scenario.cutTile as TileCode | undefined;
+
   return (
-    <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-3">
-      <div>
-        <span className="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">
-          問題 {scenario.id}
-        </span>
-        <h3 className="font-bold text-zinc-900 mt-1">{scenario.title}</h3>
+    <div
+      className="rounded-2xl p-5 md:p-7"
+      style={{
+        background: "var(--c-card)",
+        border: "1px solid var(--c-border)",
+      }}
+    >
+      <div
+        className="text-[11px] font-bold tracking-[0.15em] mb-2"
+        style={{ color: "var(--c-text-faint)" }}
+      >
+        問題 {index + 1} / {total}
+      </div>
+      <h2
+        className="text-xl md:text-2xl font-bold mb-4"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {scenario.title}
+      </h2>
+
+      <div
+        className="rounded-lg px-4 py-3 mb-5"
+        style={{
+          background: "var(--c-bg)",
+          border: "1px solid var(--c-border)",
+        }}
+      >
+        <MetaRow label="局面" value={scenario.situation} />
+        <MetaRow label="自分の手" value={scenario.hand} />
+        <MetaRow label="切る牌" value={scenario.tile} />
       </div>
 
-      <div className="text-sm space-y-1 text-zinc-700">
-        <p><span className="font-medium">局面:</span> {scenario.situation}</p>
-        <p><span className="font-medium">自分の手:</span> {scenario.hand}</p>
-        <p><span className="font-medium">切る牌:</span> {scenario.tile}</p>
-      </div>
+      {handTiles.length > 0 && cutTile && (
+        <div className="flex items-end flex-wrap gap-1 py-2 mb-5">
+          {handTiles.map((t, i) => (
+            <Tile key={i} code={t} size={36} />
+          ))}
+          <div style={{ width: 12 }} />
+          <Tile code={cutTile} size={36} danger glow={!!userAnswer} />
+        </div>
+      )}
 
-      {!answered && (
-        <div className="flex gap-3 pt-1">
+      {!userAnswer && (
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => onAnswer("push")}
-            className="flex-1 py-2.5 rounded-lg bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-600 transition-colors"
+            className="rounded-2xl p-5 md:p-6 flex flex-col items-center gap-1.5 transition-transform active:scale-95"
+            style={{
+              background: "var(--c-push-bg)",
+              border: "2px solid var(--c-push)",
+              color: "var(--c-push)",
+            }}
           >
-            押し
+            <div className="font-glyph text-3xl md:text-4xl font-extrabold">
+              押
+            </div>
+            <div className="text-[11px] font-bold tracking-[0.2em]">
+              PUSH
+            </div>
           </button>
           <button
             type="button"
             onClick={() => onAnswer("fold")}
-            className="flex-1 py-2.5 rounded-lg bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition-colors"
+            className="rounded-2xl p-5 md:p-6 flex flex-col items-center gap-1.5 transition-transform active:scale-95"
+            style={{
+              background: "var(--c-fold-bg)",
+              border: "2px solid var(--c-fold)",
+              color: "var(--c-fold)",
+            }}
           >
-            降り
+            <div className="font-glyph text-3xl md:text-4xl font-extrabold">
+              降
+            </div>
+            <div className="text-[11px] font-bold tracking-[0.2em]">
+              FOLD
+            </div>
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      className="grid py-1.5 text-xs md:text-[13px]"
+      style={{ gridTemplateColumns: "100px 1fr" }}
+    >
+      <div
+        className="font-semibold"
+        style={{ color: "var(--c-text-dim)" }}
+      >
+        {label}
+      </div>
+      <div>{value}</div>
     </div>
   );
 }
