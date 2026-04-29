@@ -1,20 +1,53 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --c-bg: #f5f4f0;
+  --c-card: #ffffff;
+  --c-border: #e6e3da;
+  --c-border-hi: #d2cdbf;
+  --c-text: #1a1a1a;
+  --c-text-dim: #6a6a6a;
+  --c-text-faint: #9a9a9a;
+  --c-ink: #161616;
+  --c-push: #0a8754;
+  --c-push-bg: #e6f4ec;
+  --c-fold: #c0392b;
+  --c-fold-bg: #fbeae8;
+  --c-warn: #d49a16;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-c-bg: var(--c-bg);
+  --color-c-card: var(--c-card);
+  --color-c-border: var(--c-border);
+  --color-c-border-hi: var(--c-border-hi);
+  --color-c-text: var(--c-text);
+  --color-c-text-dim: var(--c-text-dim);
+  --color-c-text-faint: var(--c-text-faint);
+  --color-c-ink: var(--c-ink);
+  --color-c-push: var(--c-push);
+  --color-c-push-bg: var(--c-push-bg);
+  --color-c-fold: var(--c-fold);
+  --color-c-fold-bg: var(--c-fold-bg);
+  --color-c-warn: var(--c-warn);
+  --font-sans: var(--font-noto-sans-jp);
+  --font-serif: var(--font-shippori-mincho);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-noto-sans-jp), 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "palt" 1;
+}
+
+.font-num {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.font-glyph {
+  font-family: var(--font-shippori-mincho), 'Noto Serif JP', serif;
 }
