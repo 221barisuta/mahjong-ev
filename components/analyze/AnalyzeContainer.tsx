@@ -46,7 +46,23 @@ export default function AnalyzeContainer() {
       const res = await fetch(
         `/api/tenhou?log=${encodeURIComponent(logId)}`,
       );
-      if (!res.ok) throw new Error("牌譜の取得に失敗しました");
+      if (!res.ok) {
+        let upstreamStatus: number | undefined;
+        try {
+          const body = (await res.json()) as { status?: number };
+          upstreamStatus = body.status;
+        } catch {
+          // ignore parse error
+        }
+        if (upstreamStatus === 404) {
+          throw new Error(
+            "この牌譜は取得制限があるため分析できません（特殊ロビー・トーナメント・期限切れなどの可能性）。古めの一般ロビー牌譜（鳳南/鳳東 0089/0009 等）でお試しください。",
+          );
+        }
+        throw new Error(
+          `牌譜の取得に失敗しました${upstreamStatus ? ` (upstream ${upstreamStatus})` : ""}`,
+        );
+      }
       const xml = await res.text();
 
       const log = parseTenhouLog(xml);
